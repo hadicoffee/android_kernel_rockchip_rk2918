@@ -5,8 +5,7 @@ CYANOGENMOD=../../..
 make mrproper
 
 # Set config
-make cm9_pascal2_defconfig
-make menuconfig
+make M712HC_defconfig
 
 # Make modules
 nice -n 10 make -j16 modules

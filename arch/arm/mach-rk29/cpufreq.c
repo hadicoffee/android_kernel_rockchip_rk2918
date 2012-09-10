@@ -32,17 +32,15 @@ static int no_cpufreq_access;
 
 static struct cpufreq_frequency_table default_freq_table[] = {
 //	{ .index = 1100000, .frequency =   24000 },
-        { .index = 1200000, .frequency =  204000 },
-	{ .index = 1200000, .frequency =  300000 },
+//	{ .index = 1200000, .frequency =  204000 },
+//	{ .index = 1200000, .frequency =  300000 },
 	{ .index = 1200000, .frequency =  408000 },
-	{ .index = 1200000, .frequency =  600000 },
-	{ .index = 1200000, .frequency =  816000 },
+//	{ .index = 1200000, .frequency =  600000 },
+	{ .index = 1200000, .frequency =  816000 }, /* must enable, see SLEEP_FREQ above */
 //	{ .index = 1250000, .frequency = 1008000 },
-	{ .index = 1300000, .frequency = 1008000 },
-	{ .index = 1300000, .frequency = 1104000 },
-	{ .index = 1400000, .frequency = 1176000 },
-	{ .index = 1400000, .frequency = 1200000 },
-        { .index = 1450000, .frequency = 1300000 },
+//	{ .index = 1300000, .frequency = 1104000 },
+//	{ .index = 1400000, .frequency = 1176000 },
+//	{ .index = 1400000, .frequency = 1200000 },
 	{ .frequency = CPUFREQ_TABLE_END },
 };
 static struct cpufreq_frequency_table *freq_table = default_freq_table;
@@ -74,7 +72,7 @@ module_param(limit_temp, int, 0444);
 
 #define LIMIT_AVG_VOLTAGE	1200000 /* vU */
 #else /* !CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
-#define LIMIT_AVG_VOLTAGE	1450000 /* vU */
+#define LIMIT_AVG_VOLTAGE	1400000 /* vU */
 #endif /* CONFIG_RK29_CPU_FREQ_LIMIT_BY_TEMP */
 
 enum {
@@ -158,7 +156,7 @@ static void board_do_update_cpufreq_table(struct cpufreq_frequency_table *table)
 		    (limit_index_816 < 0 ||
 		    (limit_index_816 >= 0 && table[limit_index_816].frequency < table[i].frequency)))
 			limit_index_816 = i;
-		if (table[i].frequency <= 1300000 &&
+		if (table[i].frequency <= 1008000 &&
 		    (limit_index_1008 < 0 ||
 		    (limit_index_1008 >= 0 && table[limit_index_1008].frequency < table[i].frequency))) {
 			limit_index_1008 = i;
@@ -206,7 +204,6 @@ module_param(limit_gpu_low_rate, ulong, 0644);
 #define TEMP_COEFF_816  -78
 #define TEMP_COEFF_1008 325
 #define TEMP_COEFF_1200 1300
-#define TEMP_COEFF_1300 1300
 #define WORK_DELAY      HZ
 static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned int relation, int *index)
 {
@@ -258,10 +255,8 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 		c = TEMP_COEFF_816;
 	else if (cur <= 1008 * 1000)
 		c = TEMP_COEFF_1008;
-	else if (cur <= 1200 * 1000)
-		c = TEMP_COEFF_1200;
 	else
-		c = TEMP_COEFF_1300;
+		c = TEMP_COEFF_1200;
 	temp += c * ms;
 
 	if (temp < 0)
@@ -280,7 +275,7 @@ static void rk29_cpufreq_limit_by_temp(struct cpufreq_policy *policy, unsigned i
 		 temp >= overheat_temp_1200 && temp < overheat_temp) {
 		target_index = limit_index_1008;
 		overheat = true;
-	} else if (target_freq > 1300000 && (limit_vpu_enabled || (limit_gpu_enabled && limit_gpu_high))) {
+	} else if (target_freq > 1008000 && (limit_vpu_enabled || (limit_gpu_enabled && limit_gpu_high))) {
 		target_index = limit_index_1008;
 	}
 

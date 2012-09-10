@@ -33,6 +33,13 @@
 #include <linux/ktime.h>
 #include <linux/slab.h>
 
+
+#if 0
+#define dprint(format, x...) printk("RK29 Battery: "format, ## x)
+#else
+#define dprint(format, x...) //
+#endif
+
 #if 0
 #define DBG(x...)   printk(x)
 #else
@@ -81,7 +88,7 @@ static int adc_raw_table_bat[BAT_ADC_TABLE_LEN] =
 static int adc_raw_table_ac[BAT_ADC_TABLE_LEN] = 
 {
 #if defined(CONFIG_MACH_RK29_ACH7)
-	//3760, 3886, 3964, 3989, 4020, 4062, 4123, 4180, 4189, 4190, 4190      //Êµ¼Ê²âÁ¿Öµ
+	//3760, 3886, 3964, 3989, 4020, 4062, 4123, 4180, 4189, 4190, 4190      //å®é™…æµ‹é‡å€¼
 	3691, 3760, 3800, 3827, 3845, 3885, 3950, 4007, 4078, 4158, 4300//4185//4301
 #elif defined(CONFIG_MACH_RK29_ACH8)
     3500, 3565, 3620, 3650, 3675, 3706, 3760, 3820, 3880, 3963, 4050//4185//4301
@@ -123,7 +130,7 @@ static int gBatPresent = 1;
 static int gBatLastVoltage =  0;
 static int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
 static int gBatLastCapacity = 0;
-static int gBatLastChargeCapacity = 100;          //¼ÇÂ¼³äµçÊ±µÄµç³ØÈİÁ¿
+static int gBatLastChargeCapacity = 100;          //è®°å½•å……ç”µæ—¶çš„ç”µæ± å®¹é‡
 static int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
 static int gLastBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
 static int gBatStatusChangeCnt = 0;
@@ -137,8 +144,8 @@ static int shutdownflag = 0;
 static int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE+2]; //add 2 to handle one bug
 static int gBatSlopeValue = 0;
 static int gBatVoltageValue[2]={0,0};
-static int *pSamples = &gBatVoltageSamples[0];		//²ÉÑùµãÖ¸Õë
-static int gFlagLoop = 0;		//²ÉÑù×ã¹»±êÖ¾
+static int *pSamples = &gBatVoltageSamples[0];		//é‡‡æ ·ç‚¹æŒ‡é’ˆ
+static int gFlagLoop = 0;		//é‡‡æ ·è¶³å¤Ÿæ ‡å¿—
 //static int gNumSamples = 0;
 static int gNumCharge = 0;
 static int gMaxCharge = 0;
@@ -148,7 +155,7 @@ static int gMaxLoader = 0;
 static struct regulator *pChargeregulator;
 static int gBatChargeStatus = 0;
 static int openfailflag = 0;
-static uint8_t openfailcount = 20;  //  ÎÄ¼ş´ò¿ªÊ§°ÜµÄ»°£¬ÖØ¸´´ÎÊı
+static uint8_t openfailcount = 20;  //  æ–‡ä»¶æ‰“å¼€å¤±è´¥çš„è¯ï¼Œé‡å¤æ¬¡æ•°
 
 static int last_BatChargeStatus = 0;
 
@@ -264,6 +271,8 @@ static int rk2918_battery_load_capacity(void)
 	char* p = value;
     struct file* fp = filp_open(BATT_FILENAME,O_RDONLY,0);
     
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     //get true capacity
     for (i = 0; i < 20; i++)
     {
@@ -330,7 +339,7 @@ static int rk2918_battery_load_capacity(void)
 	{
 	    loadcapacity = truecapacity;
 	}
-	//Èç¹û´ÓÎÄ¼şÖĞ¶ÁÈ¡µÄµçÑ¹±ÈÊµ¼ÊµÄ¸ßºÜ¶àµÄ»°£¬ËµÃ÷ÊÇ³¤Ê±¼ä·ÅÖÃµ¼ÖÂ·Åµç
+	//å¦‚æœä»æ–‡ä»¶ä¸­è¯»å–çš„ç”µå‹æ¯”å®é™…çš„é«˜å¾ˆå¤šçš„è¯ï¼Œè¯´æ˜æ˜¯é•¿æ—¶é—´æ”¾ç½®å¯¼è‡´æ”¾ç”µ
 	if (loadcapacity > truecapacity)
 	{
 	    if (loadcapacity - truecapacity > 20)
@@ -393,6 +402,8 @@ static void rk2918_get_charge_status(void)
 {
     int charge_on = 0;
     
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     if (gBatteryData->dc_det_pin != INVALID_GPIO)
     {
         if (gpio_get_value (gBatteryData->dc_det_pin) == gBatteryData->dc_det_level)
@@ -406,16 +417,16 @@ static void rk2918_get_charge_status(void)
     {
         if (suspend_flag) return;
             
-        if (1 == dwc_vbus_status())         //¼ì²âµ½USB²åÈë£¬µ«ÊÇÎŞ·¨Ê¶±ğÊÇ·ñÊÇ³äµçÆ÷
-        {                                   //Í¨¹ıÑÓÊ±¼ì²âPCÊ¶±ğ±êÖ¾£¬Èç¹û³¬Ê±¼ì²â²»µ½£¬ËµÃ÷ÊÇ³äµç
+        if (1 == dwc_vbus_status())         //æ£€æµ‹åˆ°USBæ’å…¥ï¼Œä½†æ˜¯æ— æ³•è¯†åˆ«æ˜¯å¦æ˜¯å……ç”µå™¨
+        {                                   //é€šè¿‡å»¶æ—¶æ£€æµ‹PCè¯†åˆ«æ ‡å¿—ï¼Œå¦‚æœè¶…æ—¶æ£€æµ‹ä¸åˆ°ï¼Œè¯´æ˜æ˜¯å……ç”µ
             if (0 == get_msc_connect_flag())
-            {                               //²åÈë³äµçÆ÷Ê±¼ä´óÓÚÒ»¶¨Ê±¼äÖ®ºó£¬¿ªÊ¼½øÈë³äµç×´Ì¬
+            {                               //æ’å…¥å……ç”µå™¨æ—¶é—´å¤§äºä¸€å®šæ—¶é—´ä¹‹åï¼Œå¼€å§‹è¿›å…¥å……ç”µçŠ¶æ€
                 if (++gBatUsbChargeCnt >= NUM_USBCHARGE_IDENTIFY_TIMES)
                 {
                     gBatUsbChargeCnt = NUM_USBCHARGE_IDENTIFY_TIMES + 1;
                     charge_on = 1;
                 }
-            }                               //·ñÔò£¬²»½øÈë³äµçÄ£Ê½
+            }                               //å¦åˆ™ï¼Œä¸è¿›å…¥å……ç”µæ¨¡å¼
             #if defined(CONFIG_MACH_RK29_ACH8)
             charge_on = 1;
             #endif
@@ -436,7 +447,7 @@ static void rk2918_get_charge_status(void)
         if(gBatChargeStatus !=1) 
         {            
             gBatChargeStatus = 1;
-            gBatStatusChangeCnt = 0;        //×´Ì¬±ä»¯¿ªÊ¼¼ÆÊı
+            gBatStatusChangeCnt = 0;        //çŠ¶æ€å˜åŒ–å¼€å§‹è®¡æ•°
             rk2918_charge_enable();
         }
     } 
@@ -445,7 +456,7 @@ static void rk2918_get_charge_status(void)
         if(gBatChargeStatus != 0) 
         {
             gBatChargeStatus = 0;
-            gBatStatusChangeCnt = 0;        //×´Ì¬±ä»¯¿ªÊ¼¼ÆÊı
+            gBatStatusChangeCnt = 0;        //çŠ¶æ€å˜åŒ–å¼€å§‹è®¡æ•°
             rk2918_charge_disable();
         }
     }
@@ -453,6 +464,9 @@ static void rk2918_get_charge_status(void)
 
 static void rk2918_get_bat_status(struct rk2918_battery_data *bat)
 {
+	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     rk2918_get_charge_status();
     
 	if(gBatChargeStatus == 1)
@@ -500,6 +514,8 @@ static void rk2918_get_bat_health(struct rk2918_battery_data *bat)
 
 static void rk2918_get_bat_present(struct rk2918_battery_data *bat)
 {
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 	if(gBatVoltage < bat->bat_min)
 	gBatPresent = 0;
 	else
@@ -513,6 +529,8 @@ static int rk2918_get_bat_capacity_raw(int BatVoltage)
 	int capacity = 0;
 	int *p = adc_raw_table_bat;
     
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     if (gBatChargeStatus == 1)
     {
         p = adc_raw_table_ac;
@@ -520,17 +538,17 @@ static int rk2918_get_bat_capacity_raw(int BatVoltage)
 	
 	if(BatVoltage >= p[BAT_ADC_TABLE_LEN - 1])
 	{
-	    //µ±µçÑ¹³¬¹ı×î´óÖµ
+	    //å½“ç”µå‹è¶…è¿‡æœ€å¤§å€¼
 	    capacity = 100;
 	}	
 	else if(BatVoltage <= p[0])
 	{
-	    //µ±µçÑ¹µÍÓÚ×îĞ¡Öµ
+	    //å½“ç”µå‹ä½äºæœ€å°å€¼
 	    capacity = 0;
 	}
 	else
 	{
-    	//¼ÆËãÈİÁ¿
+    	//è®¡ç®—å®¹é‡
     	for(i = 0; i < BAT_ADC_TABLE_LEN - 1; i++)
         {
     		
@@ -552,6 +570,8 @@ static int rk2918_battery_resume_get_Capacity(int deltatime)
 	int i;
     int tmp = 0;
     int capacity = 0;
+	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
 
 	for (i = 0; i < 20; i++)
     {
@@ -571,7 +591,7 @@ static int rk2918_battery_resume_get_Capacity(int deltatime)
     	/*
         if (deltatime > (100 - gBatCapacity) * CHARGE_MIN_SECOND)
             deltatime = (100 - gBatCapacity) * CHARGE_MIN_SECOND;
-        if (capacity > gBatCapacity + (deltatime / CHARGE_MIN_SECOND))       //²ÉÑùµç³ØÈİÁ¿Æ«²î½Ï´ó£¬½«ÈİÁ¿À­»Ø
+        if (capacity > gBatCapacity + (deltatime / CHARGE_MIN_SECOND))       //é‡‡æ ·ç”µæ± å®¹é‡åå·®è¾ƒå¤§ï¼Œå°†å®¹é‡æ‹‰å›
         {
             capacity = gBatCapacity + (deltatime / CHARGE_MIN_SECOND);
         }
@@ -641,7 +661,7 @@ static int rk2918_battery_resume_get_Capacity(int deltatime)
     	/*
         if (deltatime > gBatCapacity * DISCHARGE_MIN_SECOND)
             deltatime = gBatCapacity * DISCHARGE_MIN_SECOND;            
-        if (capacity < gBatCapacity - (deltatime / DISCHARGE_MIN_SECOND))    //²ÉÑùµç³ØÈİÁ¿Æ«²î½Ï´ó£¬½«ÈİÁ¿À­»Ø
+        if (capacity < gBatCapacity - (deltatime / DISCHARGE_MIN_SECOND))    //é‡‡æ ·ç”µæ± å®¹é‡åå·®è¾ƒå¤§ï¼Œå°†å®¹é‡æ‹‰å›
         {
             capacity = gBatCapacity - (deltatime / DISCHARGE_MIN_SECOND);
         }
@@ -697,10 +717,12 @@ static int rk2918_get_bat_capacity_ext(int BatVoltage)
 	int capacity = 0;
 	static int lostcount = 0;
 	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     capacity = rk2918_get_bat_capacity_raw(BatVoltage);
 	capacitytmp = capacity;
 	
-	//³ä·Åµç×´Ì¬±ä»¯ºó£¬BufferÌîÂúÖ®Ç°£¬²»¸üĞÂ
+	//å……æ”¾ç”µçŠ¶æ€å˜åŒ–åï¼ŒBufferå¡«æ»¡ä¹‹å‰ï¼Œä¸æ›´æ–°
     if (gBatStatusChangeCnt < NUM_VOLTAGE_SAMPLE)
     {
         capacity = gBatCapacity;
@@ -710,7 +732,7 @@ static int rk2918_get_bat_capacity_ext(int BatVoltage)
     {
         if ((capacity > gBatCapacity)  && (gBatCapacity < 100))
         {
-            //Êµ¼Ê²ÉÑùµ½µÄµçÑ¹±ÈÏÔÊ¾µÄµçÑ¹´ó£¬Öğ¼¶ÉÏÉı
+            //å®é™…é‡‡æ ·åˆ°çš„ç”µå‹æ¯”æ˜¾ç¤ºçš„ç”µå‹å¤§ï¼Œé€çº§ä¸Šå‡
             gBatHighCapacityChargeCnt = 0;
             if (gBatCapacityDownCnt == 0)
             {
@@ -726,7 +748,7 @@ static int rk2918_get_bat_capacity_ext(int BatVoltage)
         {
             capacity = gBatCapacity;
             
-            //³¤Ê±¼äÄÚ³äµçµçÑ¹ÎŞ±ä»¯£¬¿ªÊ¼Æô¶¯¼ÆÊ±³äµç
+            //é•¿æ—¶é—´å†…å……ç”µç”µå‹æ— å˜åŒ–ï¼Œå¼€å§‹å¯åŠ¨è®¡æ—¶å……ç”µ
             if ((gBatCapacity >= 80) && (++gBatHighCapacityChargeCnt > NUM_CHARGE_MAX_SAMPLE))
             {
                 capacity = gBatCapacity + 1;
@@ -755,7 +777,7 @@ static int rk2918_get_bat_capacity_ext(int BatVoltage)
     }    
     else
     {   
-        //·ÅµçÊ±,Ö»ÔÊĞíµçÑ¹ÏÂ½µ
+        //æ”¾ç”µæ—¶,åªå…è®¸ç”µå‹ä¸‹é™
         if (capacity > gBatCapacity)
         {
             capacity = gBatCapacity;
@@ -855,6 +877,8 @@ static void rk2918_get_bat_voltage(struct rk2918_battery_data *bat)
 	int i,*pSamp,*pStart = &gBatVoltageSamples[0],num = 0;
 	int temp[2] = {0,0};
 	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 	value = gBatteryData->adc_val;
 	AdcTestvalue = value;
     adc_async_read(gBatteryData->client);
@@ -879,13 +903,13 @@ static void rk2918_get_bat_voltage(struct rk2918_battery_data *bat)
 	gBatVoltage = value / num;
 	//gBatVoltage = (value * BAT_2V5_VALUE * 2) / 1024;
 	
-	/*Ïû³ıÃ«´ÌµçÑ¹*/
+	/*æ¶ˆé™¤æ¯›åˆºç”µå‹*/
 	if(gBatVoltage >= BATT_MAX_VOL_VALUE + 10)
 		gBatVoltage = BATT_MAX_VOL_VALUE + 10;
 	else if(gBatVoltage <= BATT_ZERO_VOL_VALUE - 10)
 		gBatVoltage = BATT_ZERO_VOL_VALUE - 10;
 
-    //³ä·Åµç×´Ì¬±ä»¯Ê±,¿ªÊ¼¼ÆÊı	
+    //å……æ”¾ç”µçŠ¶æ€å˜åŒ–æ—¶,å¼€å§‹è®¡æ•°	
 	if (++gBatStatusChangeCnt > NUM_VOLTAGE_SAMPLE)  
 	    gBatStatusChangeCnt = NUM_VOLTAGE_SAMPLE + 1;
 }
@@ -897,13 +921,15 @@ static void rk2918_get_bat_capacity(struct rk2918_battery_data *bat)
     s32 deltatime = 0;
     ktime_t ktmietmp;
     struct timespec ts;
+	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
     
 	ktmietmp = ktime_get_real();
     ts = ktime_to_timespec(ktmietmp);
 	deltatime = ts.tv_sec - batteryspendcnt;
 	
 	if (first_flag || (openfailflag && (openfailcount > 1))) 
-	//¶à´Î´ò¿ª£¬¸Õ¿ªÊ¼²ÉÑùÊ±²»×¼£¬¶à´Î²ÉÑù¡£¡£
+	//å¤šæ¬¡æ‰“å¼€ï¼Œåˆšå¼€å§‹é‡‡æ ·æ—¶ä¸å‡†ï¼Œå¤šæ¬¡é‡‡æ ·ã€‚ã€‚
 	{
 	     if(first_flag == 1)
 	     		first_flag--;
@@ -912,7 +938,7 @@ static void rk2918_get_bat_capacity(struct rk2918_battery_data *bat)
 	    gBatCapacity = rk2918_battery_load_capacity();
 	    if (gBatCapacity == 0) gBatCapacity = 1;
 	}
-	else if ((deltatime > 1) && (first_flag == 0) &&(!time_chg_flag))//´¦ÀíĞİÃßÖ®ºóµÄµçÁ¿»Ø¸´,Èç¹û³¬¹ıÊ®·ÖÖÓ
+	else if ((deltatime > 1) && (first_flag == 0) &&(!time_chg_flag))//å¤„ç†ä¼‘çœ ä¹‹åçš„ç”µé‡å›å¤,å¦‚æœè¶…è¿‡ååˆ†é’Ÿ
 	{	
 		//printk("---->time_chg_flag =%d\n", time_chg_flag);
         gBatCapacity = rk2918_battery_resume_get_Capacity(deltatime);
@@ -933,11 +959,15 @@ static int buf_offset = 0;
 
 static void rk2918_battery_timer_work(struct work_struct *work)
 {		
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 	rk2918_get_bat_status(gBatteryData);
 	rk2918_get_bat_health(gBatteryData);
 	rk2918_get_bat_present(gBatteryData);
 	rk2918_get_bat_voltage(gBatteryData);
+	
 	//to prevent gBatCapacity be changed sharply
+	
 	if (gBatCapacity < 0)
 	{
 		gBatCapacity = 0;
@@ -1035,6 +1065,9 @@ static int rk2918_ac_get_property(struct power_supply *psy,
 	int ret = 0;
 	charger_type_t charger;
 	charger =  CHARGER_USB;
+	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		if (psy->type == POWER_SUPPLY_TYPE_MAINS)
@@ -1062,6 +1095,8 @@ static int rk2918_battery_get_property(struct power_supply *psy,
 		struct rk2918_battery_data, battery);
 	int ret = 0;
 
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = gBatStatus;
@@ -1129,9 +1164,10 @@ static enum power_supply_property rk2918_ac_props[] = {
 static int rk2918_battery_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/* flush all pending status updates */
-	printk("rk2918_battery_suspend!!!\n");
 	struct rk2918_battery_platform_data *pdata = dev->dev.platform_data;
 
+	printk("rk2918_battery_suspend!!!\n");
+	
 	if (pdata->charge_cur_ctl != INVALID_GPIO) {
 		gpio_set_value(pdata->charge_cur_ctl, pdata->charge_cur_ctl_level); /* huge current charge */
 	}
@@ -1160,6 +1196,8 @@ static int rk2918_battery_resume(struct platform_device *dev)
 
 static irqreturn_t rk2918_battery_interrupt(int irq, void *dev_id)
 {
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
 //    if ((rk2918_get_charge_status()) && (gBatFullFlag != 1))
 //    {
 //        gBatFullFlag = 1;
@@ -1170,7 +1208,7 @@ static irqreturn_t rk2918_battery_interrupt(int irq, void *dev_id)
 
 static irqreturn_t rk2918_dc_wakeup(int irq, void *dev_id)
 {   
-    gBatStatusChangeCnt = 0;        //×´Ì¬±ä»¯¿ªÊ¼¼ÆÊı
+    gBatStatusChangeCnt = 0;        //çŠ¶æ€å˜åŒ–å¼€å§‹è®¡æ•°
     
 //    disable_irq_wake(gBatteryData->dc_det_irq);
     queue_delayed_work(gBatteryData->wq, &gBatteryData->work, 0);
@@ -1206,6 +1244,8 @@ static void rk2918_low_battery_check(void)
     int i;
     int tmp = 0;
     
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
+	
     for (i = 0; i < 100; i++)
     {
         tmp += adc_sync_read(gBatteryData->client);
@@ -1262,6 +1302,8 @@ static int rk2918_battery_probe(struct platform_device *pdev)
 	struct rk2918_battery_platform_data *pdata = pdev->dev.platform_data;
 	int irq_flag;
 	int i = 0;
+	
+	dprint("func=%s, line=%d :\n", __func__, __LINE__);
 	
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
@@ -1404,15 +1446,15 @@ static int rk2918_battery_probe(struct platform_device *pdev)
 		goto err_usb_failed;
 	}
 #endif
+
 	ret = power_supply_register(&pdev->dev, &data->battery);
 	if (ret)
 	{
 		printk(KERN_INFO "fail to battery power_supply_register\n");
 		goto err_battery_failed;
 	}
+
 	platform_set_drvdata(pdev, data);
-	
-	INIT_WORK(&data->timer_work, rk2918_battery_timer_work);
 	
 //    irq_flag = (pdata->charge_ok_level) ? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 //	ret = request_irq(gpio_to_irq(pdata->charge_ok_pin), rk2918_battery_interrupt, irq_flag, "rk2918_battery", data);
@@ -1439,8 +1481,11 @@ static int rk2918_battery_probe(struct platform_device *pdev)
 #endif
 
 	setup_timer(&data->timer, rk2918_batscan_timer, (unsigned long)data);
-	//data->timer.expires  = jiffies + 2000;
-	//add_timer(&data->timer);
+	// changed to notify android of status....
+	data->timer.expires  = jiffies + 5000; // 2000
+	add_timer(&data->timer);
+   
+	INIT_WORK(&data->timer_work, rk2918_battery_timer_work);   
    
     rk29_battery_dbg_class = class_create(THIS_MODULE, "rk29_battery");
 	battery_dev = device_create(rk29_battery_dbg_class, NULL, MKDEV(0, 1), NULL, "battery");
@@ -1448,7 +1493,7 @@ static int rk2918_battery_probe(struct platform_device *pdev)
 	if (ret)
 	{
 		printk("create file sys failed!!! \n");
-		//goto err_dcirq_failed;
+		goto err_dcirq_failed;
 	}
 	for(i = 0; i<10; i++)
 	{
